@@ -1,0 +1,32 @@
+# Dropping this file into clusters/local/applications/ is the entire
+# onboarding process. The root app finds it and Argo CD does the rest.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{SERVICE_NAME}}
+  namespace: argocd
+  labels:
+    platform.golden-path.io/owner: {{OWNER}}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{REPO_URL}}
+    targetRevision: {{REPO_REVISION}}
+    path: apps/{{SERVICE_NAME}}/overlays/local
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{SERVICE_NAME}}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

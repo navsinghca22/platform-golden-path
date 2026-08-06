@@ -1,0 +1,69 @@
+# Generated from templates/service/base/deployment.yaml by scripts/scaffold.py
+#
+# Everything below the container image is a platform default. The developer
+# who requested this service chose a name, an owner, an image and a port --
+# they did not choose probes, limits, security context or scrape annotations,
+# and they never will unless they have a reason to.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{SERVICE_NAME}}
+  labels:
+    app.kubernetes.io/name: {{SERVICE_NAME}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{SERVICE_NAME}}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{SERVICE_NAME}}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{PORT}}"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{SERVICE_NAME}}
+          image: {{IMAGE}}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{PORT}}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

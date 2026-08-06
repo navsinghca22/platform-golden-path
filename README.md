@@ -2,8 +2,8 @@
 
 An internal developer platform, built one layer at a time. Kubernetes control plane, GitOps delivery, and self-service infrastructure — running locally, provisioning real cloud resources.
 
-> **Status:** Labs 1–2 complete — GitOps delivery, and self-service cloud infrastructure.
-> Lab 3 adds the scaffolder and observability defaults.
+> **Status:** All three labs complete — GitOps delivery, self-service cloud infrastructure,
+> and a golden path a developer can walk without reading any of it.
 
 ### Where to start
 
@@ -11,9 +11,9 @@ An internal developer platform, built one layer at a time. Kubernetes control pl
 |---|---|
 | Run it | [Quick start](#quick-start) below — about 5 minutes |
 | Understand *why* it's built this way | **[docs/concepts.md](docs/concepts.md)** — reconciliation, pull vs push, app-of-apps, cognitive load |
-| Follow the labs step by step | [Lab 1 — GitOps](docs/lab-01-gitops.md) · [Lab 2 — Crossplane](docs/lab-02-crossplane.md) |
+| Follow the labs step by step | [1 — GitOps](docs/lab-01-gitops.md) · [2 — Crossplane](docs/lab-02-crossplane.md) · [3 — Scaffolder](docs/lab-03-scaffolder.md) |
 | See what broke and why | [docs/troubleshooting.md](docs/troubleshooting.md) — real failures, root causes |
-| Understand the decisions | [ADR-0001 — local control plane](docs/adr/0001-local-control-plane.md) · [ADR-0002 — credentials](docs/adr/0002-static-credentials-vs-irsa.md) |
+| Understand the decisions | [0001 — local control plane](docs/adr/0001-local-control-plane.md) · [0002 — credentials](docs/adr/0002-static-credentials-vs-irsa.md) · [0003 — no Backstage](docs/adr/0003-scaffolder-not-backstage.md) |
 
 `concepts.md` is the one to read if you only read one. It explains the ideas rather than the commands, and it's written to be re-read.
 
@@ -46,9 +46,9 @@ A golden path: one well-lit way to get a service running, with the right default
                                            ▼
                        ┌──────────────────────────────────────────┐
                        │  Argo CD          root "app of apps"     │
-                       │    └── podinfo                           │
+                       │    └── services (scaffolded)             │
                        │    └── crossplane + platform APIs        │
-                       │    └── (lab 3) observability             │
+                       │    └── platform APIs (XRD + Composition) │
                        └───────────────────┬──────────────────────┘
                                            │ reconcile
                                            ▼
@@ -119,7 +119,7 @@ That's the mechanism, but the reason is organisational: **a platform whose adopt
 
 ### What's in the default template — and what isn't
 
-Every service scaffolded from `apps/podinfo/base` inherits, without asking:
+Every service the scaffolder generates inherits, without asking:
 
 - **Liveness and readiness probes** wired to real endpoints
 - **Resource requests and limits**, so the scheduler can do its job and one service can't starve a node
@@ -163,6 +163,25 @@ Notice the timing difference: self-heal lands in ~5 seconds, a Git change takes 
 
 ---
 
+## The golden path, end to end
+
+```bash
+make scaffold NAME=checkout-api OWNER=team-checkout \
+  IMAGE=ghcr.io/stefanprodan/podinfo:6.11.2 PORT=9898
+```
+
+Or, for someone who has never seen this repo: **Actions → scaffold new service → Run workflow**. Five fields and a checkbox produce a pull request containing a complete service plus its Argo CD `Application` — and an `ObjectStorage` request if they ticked the box. Merging the PR is the deploy.
+
+What the developer supplied: a name, an owner, an image, a port, a checkbox.
+
+What they never had to learn: probes, resource limits, security context, scrape annotations, namespace conventions, the Argo `Application` shape, AWS regions, bucket naming, or the tagging policy.
+
+The scaffolder also **refuses** bad input with an explanation rather than a schema error four steps later — uppercase names, `:latest` tags, privileged ports, name collisions. A well-designed input schema catches most of what people reach for admission controllers to catch, at the moment the mistake is made, in language the person who made it understands.
+
+It's a GitHub Actions form rather than Backstage, on purpose: [ADR-0003](docs/adr/0003-scaffolder-not-backstage.md).
+
+---
+
 ## What broke while building this
 
 Two failures worth writing down, both general Kubernetes traps rather than anything specific to this repo:
@@ -201,9 +220,12 @@ clusters/local/
   kind.yaml                       cluster shape + host port mappings
   bootstrap/root-app.yaml         the one imperative act
   applications/                   ← add a file here to onboard a service
-apps/podinfo/
+apps/<service>/
   base/                           the golden path defaults
   overlays/local/                 only what differs for this environment
+templates/service/                what the scaffolder renders
+apis/storage/                     the platform's own API (XRD + Composition)
+platform/crossplane*/             control-plane components, installed via Argo
 scripts/                          bootstrap, teardown, drift demo, validation
 docs/
   concepts.md                     how it works and why — start here
@@ -231,7 +253,7 @@ Manifests that don't render are caught in review, not at 2am.
 
 - [x] **Lab 1 — GitOps.** kind + Argo CD + app-of-apps + drift reconciliation.
 - [x] **Lab 2 — Self-service infrastructure.** Crossplane v2 provisioning real AWS S3 from a namespaced composite resource, behind a two-field developer API. [Walkthrough](docs/lab-02-crossplane.md).
-- [ ] **Lab 3 — The portal.** A scaffolder that generates a new service repo (app skeleton + CI + manifests + an ObjectStorage request + catalog registration) from a form, with observability wired in by default.
+- [x] **Lab 3 — The golden path.** A five-field form that generates a hardened, observable service plus its infrastructure request and opens a pull request. Merging is the deploy. [Walkthrough](docs/lab-03-scaffolder.md) · [why not Backstage](docs/adr/0003-scaffolder-not-backstage.md).
 
 ## What I'd do next with more time
 

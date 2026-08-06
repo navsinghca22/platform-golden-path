@@ -9,10 +9,12 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require kustomize kubeconform
 
-# Overlays that Argo CD is pointed at. Bases are validated transitively.
-OVERLAYS=(
-  "apps/podinfo/overlays/local"
-)
+# Discovered, not hardcoded. The scaffolder creates new overlays on demand, and
+# a validation list that has to be edited by hand is a validation list that
+# silently stops covering things.
+mapfile -t OVERLAYS < <(cd "$REPO_ROOT" && find apps -mindepth 3 -maxdepth 3 -type d -path '*/overlays/*' | sort)
+[ "${#OVERLAYS[@]}" -gt 0 ] || die "no overlays found under apps/*/overlays/* -- did the repo layout change?"
+log "found ${#OVERLAYS[@]} overlay(s) to validate"
 
 # Loose manifests that are applied directly rather than rendered.
 RAW_DIRS=(

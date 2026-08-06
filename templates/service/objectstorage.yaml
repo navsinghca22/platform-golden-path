@@ -1,0 +1,14 @@
+# Only generated when the developer ticks "needs object storage".
+#
+# Note what they had to know to get a bucket: nothing. Not the AWS account,
+# not the region defaults, not the tagging policy, not that it's S3.
+apiVersion: platform.golden-path.io/v1alpha1
+kind: ObjectStorage
+metadata:
+  name: {{SERVICE_NAME}}
+  namespace: {{SERVICE_NAME}}
+  labels:
+    app.kubernetes.io/name: {{SERVICE_NAME}}
+spec:
+  region: {{REGION}}
+  owner: {{OWNER}}

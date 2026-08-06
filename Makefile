@@ -3,7 +3,7 @@ SHELL := /usr/bin/env bash
 include versions.env
 export
 
-.PHONY: help init up down bootstrap argocd-ui argocd-password open drift-demo validate lint status aws-creds bucket storage xp-status teardown-aws
+.PHONY: help init up down bootstrap argocd-ui argocd-password open drift-demo validate lint status aws-creds bucket storage xp-status teardown-aws scaffold
 
 help: ## Show this help
 	@grep -hE "^[a-zA-Z_-]+:.*?## " $(MAKEFILE_LIST) \
@@ -55,6 +55,13 @@ xp-status: ## Show Crossplane providers and functions
 
 teardown-aws: ## Delete all cloud resources and VERIFY against the AWS API
 	@./scripts/teardown-aws.sh
+
+scaffold: ## Generate a new service locally (NAME=x OWNER=y IMAGE=z [PORT=8080] [STORAGE=1])
+	@test -n "$(NAME)"  || { echo "usage: make scaffold NAME=checkout-api OWNER=team-checkout IMAGE=ghcr.io/acme/app:1.0"; exit 1; }
+	@test -n "$(OWNER)" || { echo "OWNER is required"; exit 1; }
+	@test -n "$(IMAGE)" || { echo "IMAGE is required"; exit 1; }
+	@python3 scripts/scaffold.py --name "$(NAME)" --owner "$(OWNER)" --image "$(IMAGE)" \
+		--port "$${PORT:-8080}" $(if $(STORAGE),--storage,)
 
 validate: ## Render every overlay and validate against the Kubernetes schema
 	@./scripts/validate.sh
