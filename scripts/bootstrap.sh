@@ -31,7 +31,7 @@ log "kube context: ${CTX}"
 # ---------------------------------------------------------------- argo cd ---
 log "installing Argo CD ${ARGOCD_VERSION}"
 kubectl apply -f "${REPO_ROOT}/clusters/local/bootstrap/namespace.yaml"
-kubectl apply -n argocd \
+kubectl apply --server-side --force-conflicts -n argocd \
   -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
 
 log "waiting for Argo CD to become available (this pulls a few images; 2-3 min on a cold cache)"
