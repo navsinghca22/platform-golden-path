@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: golden-path
+      app.kubernetes.io/managed-by: argocd
+      platform.golden-path.io/owner: team-checkout
+    includeSelectors: false
+
+resources:
+  - deployment.yaml
+  - service.yaml
