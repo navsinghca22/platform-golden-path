@@ -25,7 +25,7 @@ require() {
 # Argo CD pulls from a URL; a placeholder produces a confusing ComparisonError
 # deep in the UI rather than an actionable message here.
 assert_repo_initialised() {
-  if grep -rq '__REPO_URL__' "${REPO_ROOT}/clusters" 2>/dev/null; then
+  if grep -rq '__REPO_URL__\|__REPO_REVISION__' "${REPO_ROOT}/clusters" 2>/dev/null; then
     die "repo not initialised: run 'make init' first (it points the Argo CD Applications at your fork)."
   fi
 }
