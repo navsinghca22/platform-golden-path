@@ -1,6 +1,10 @@
 # platform-golden-path
 
-An internal developer platform, built one layer at a time. Kubernetes control plane, GitOps delivery, and self-service infrastructure — running locally, provisioning real cloud resources.
+[![validate](https://github.com/navsinghca22/platform-golden-path/actions/workflows/validate.yaml/badge.svg)](https://github.com/navsinghca22/platform-golden-path/actions/workflows/validate.yaml)
+
+An internal developer platform. A developer fills in a five-field form and gets a hardened, observable service with the cloud infrastructure it needs — without touching a cluster or a cloud console.
+
+GitOps delivery, self-service infrastructure, and a scaffolder that ties them together. Control plane runs locally; the AWS resources it provisions are real.
 
 > **Status:** All three labs complete — GitOps delivery, self-service cloud infrastructure,
 > and a golden path a developer can walk without reading any of it.
@@ -47,7 +51,7 @@ A golden path: one well-lit way to get a service running, with the right default
                        ┌──────────────────────────────────────────┐
                        │  Argo CD          root "app of apps"     │
                        │    └── services (scaffolded)             │
-                       │    └── crossplane + platform APIs        │
+                       │    └── crossplane (provider + config)    │
                        │    └── platform APIs (XRD + Composition) │
                        └───────────────────┬──────────────────────┘
                                            │ reconcile
@@ -124,7 +128,7 @@ Every service the scaffolder generates inherits, without asking:
 - **Liveness and readiness probes** wired to real endpoints
 - **Resource requests and limits**, so the scheduler can do its job and one service can't starve a node
 - **A hardened `securityContext`** — non-root, no privilege escalation, read-only root filesystem, all capabilities dropped
-- **Writable volumes for the paths the process actually needs** (`/data`, `/tmp`). Hardening without this is how "secure by default" turns into a CrashLoop on first deploy — the failure mode that makes teams route around the platform.
+- **A numeric `runAsUser` and a writable `/tmp`.** Both learned the hard way: `runAsNonRoot` fails closed without a numeric UID, and `readOnlyRootFilesystem` without writable paths CrashLoops on first deploy. A hardened default that doesn't start is worse than no default at all.
 - **Prometheus scrape annotations**, so the service is observable on day one whether or not anyone remembered to ask
 
 Deliberately **excluded** from the base:
@@ -135,7 +139,7 @@ Deliberately **excluded** from the base:
 | Ingress / TLS | Environment-shaped, not service-shaped. Belongs in overlays and the platform layer. |
 | HPA | Needs per-service load characteristics. A default here would be a guess wearing a suit. |
 | ServiceMonitor CRD | Requires Prometheus Operator to be installed. Plain annotations work with or without it — fewer preconditions, wider adoption. |
-| `runAsUser` | Enforces the invariant (`runAsNonRoot: true`) without pinning a UID that breaks the moment an upstream image changes its user. |
+| Ingress hostnames | Environment-shaped. The platform supplies the mechanism; the team supplies the name, in an overlay. |
 
 Every option in a template is cognitive load pushed onto the customer. The interesting engineering is in what you leave out.
 
@@ -184,13 +188,13 @@ It's a GitHub Actions form rather than Backstage, on purpose: [ADR-0003](docs/ad
 
 ## What broke while building this
 
-Two failures worth writing down, both general Kubernetes traps rather than anything specific to this repo:
+Eleven failures are written up with symptoms and root causes. The two most transferable:
 
 **The `applicationsets` CRD failed at exactly 262144 bytes.** Client-side `kubectl apply` stores the entire manifest in the `last-applied-configuration` annotation, and annotations cap at 256 KB. Server-side apply tracks ownership in `managedFields` instead — no annotation to overflow. This bites on nearly every large CRD.
 
 **Pods failed with `CreateContainerConfigError` under `runAsNonRoot`.** The kubelet must *verify* the user isn't root before starting a container, and it can't resolve a named user (`USER app`) without reading the image's `/etc/passwd`. So it fails closed. `runAsNonRoot` is only usable alongside a numeric `runAsUser`.
 
-The second one carries the more useful lesson, and it changed how the base template is written: **a hardened default that CrashLoops on first deploy is worse than no default at all.** A product team that hits it doesn't debug your securityContext — they conclude the platform is broken and copy someone else's working YAML. That's also why the base ships `emptyDir` mounts at `/data` and `/tmp`, since `readOnlyRootFilesystem: true` without writable paths is the same failure wearing a different hat.
+The second one carries the more useful lesson, and it changed how the base template is written: **a hardened default that CrashLoops on first deploy is worse than no default at all.** A product team that hits it doesn't debug your securityContext — they conclude the platform is broken and copy someone else's working YAML. That's also why every generated service ships a writable `/tmp` (and podinfo additionally `/data`, because that image wants it) — `readOnlyRootFilesystem: true` without writable paths is the same failure wearing a different hat.
 
 Full write-ups with symptoms and root causes: **[docs/troubleshooting.md](docs/troubleshooting.md)**.
 
@@ -226,19 +230,26 @@ apps/<service>/
 templates/service/                what the scaffolder renders
 apis/storage/                     the platform's own API (XRD + Composition)
 platform/crossplane*/             control-plane components, installed via Argo
-scripts/                          bootstrap, teardown, drift demo, validation
+examples/                         a hand-written request, for reference
+scripts/
+  scaffold.py                     the renderer behind the form
+  bootstrap.sh teardown*.sh       cluster lifecycle
+  aws-credentials.sh              local creds -> in-cluster Secret, never via Git
+  drift-demo.sh validate.sh       the demo, and the CI entrypoint
 docs/
   concepts.md                     how it works and why — start here
-  lab-01-gitops.md                step-by-step walkthrough
-  troubleshooting.md              real failures, root causes
-  aws-setup.md                    prep for lab 2
+  lab-0{1,2,3}-*.md               step-by-step walkthroughs
+  troubleshooting.md              eleven real failures, root causes
+  aws-setup.md                    AWS account prep
   adr/                            decisions worth defending later
-.github/workflows/validate.yaml   render + schema-validate every PR
+.github/workflows/
+  validate.yaml                   render + schema-validate every PR
+  scaffold.yaml                   the developer-facing form
 ```
 
 ## Validation
 
-CI renders every overlay with `kustomize build` and validates the output against the real Kubernetes OpenAPI schema with `kubeconform`, then shellchecks the scripts. Same entrypoint locally:
+CI **discovers** every overlay under `apps/*/overlays/*` — including ones the scaffolder created — renders them with `kustomize build`, validates the output against the real Kubernetes OpenAPI schema with `kubeconform`, and shellchecks the scripts with `-x` so sourced files are checked too. A hardcoded list of things to validate is a list that silently stops covering things. Same entrypoint locally:
 
 ```bash
 make validate
@@ -251,7 +262,7 @@ Manifests that don't render are caught in review, not at 2am.
 
 ## Roadmap
 
-- [x] **Lab 1 — GitOps.** kind + Argo CD + app-of-apps + drift reconciliation.
+- [x] **Lab 1 — GitOps.** kind + Argo CD + app-of-apps + drift reconciliation. [Walkthrough](docs/lab-01-gitops.md).
 - [x] **Lab 2 — Self-service infrastructure.** Crossplane v2 provisioning real AWS S3 from a namespaced composite resource, behind a two-field developer API. [Walkthrough](docs/lab-02-crossplane.md).
 - [x] **Lab 3 — The golden path.** A five-field form that generates a hardened, observable service plus its infrastructure request and opens a pull request. Merging is the deploy. [Walkthrough](docs/lab-03-scaffolder.md) · [why not Backstage](docs/adr/0003-scaffolder-not-backstage.md).
 
