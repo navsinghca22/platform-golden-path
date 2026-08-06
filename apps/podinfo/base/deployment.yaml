@@ -25,6 +25,11 @@ spec:
         # upstream image changes its user -- a bad trade for a platform default
         # that every scaffolded service inherits.
         runAsNonRoot: true
+        # Must be numeric. podinfo's image declares `USER app` by name, and the
+        # kubelet cannot verify a named user is non-root without reading the
+        # image's /etc/passwd -- so runAsNonRoot alone fails closed with
+        # CreateContainerConfigError. This is the UID the upstream Helm chart uses.
+        runAsUser: 100
         seccompProfile:
           type: RuntimeDefault
       containers:
