@@ -5,6 +5,18 @@ An internal developer platform, built one layer at a time. Kubernetes control pl
 > **Status:** Lab 1 of 3 complete — GitOps delivery with Argo CD.
 > Lab 2 adds Crossplane and real AWS resources. Lab 3 adds the scaffolder and observability defaults.
 
+### Where to start
+
+| If you want to… | Read |
+|---|---|
+| Run it | [Quick start](#quick-start) below — about 5 minutes |
+| Understand *why* it's built this way | **[docs/concepts.md](docs/concepts.md)** — reconciliation, pull vs push, app-of-apps, cognitive load |
+| Follow the lab step by step | [docs/lab-01-gitops.md](docs/lab-01-gitops.md) |
+| See what broke and why | [docs/troubleshooting.md](docs/troubleshooting.md) — real failures, root causes |
+| Understand the cost decision | [docs/adr/0001](docs/adr/0001-local-control-plane.md) |
+
+`concepts.md` is the one to read if you only read one. It explains the ideas rather than the commands, and it's written to be re-read.
+
 ---
 
 ## The problem this solves
@@ -147,6 +159,22 @@ No pipeline ran. No webhook fired. The application controller compared live stat
 
 Then run the loop the other way — change `replicas` in `apps/podinfo/overlays/local/kustomization.yaml`, push, and watch the same controller converge toward the new declared state. One mechanism, both directions.
 
+Notice the timing difference: self-heal lands in ~5 seconds, a Git change takes up to 3 minutes. Argo CD *watches* cluster state via informers but *polls* Git. Drift correction is event-driven; deployment is eventual. [Why that matters →](docs/concepts.md#3-the-asymmetry-fast-healing-slow-deploys)
+
+---
+
+## What broke while building this
+
+Two failures worth writing down, both general Kubernetes traps rather than anything specific to this repo:
+
+**The `applicationsets` CRD failed at exactly 262144 bytes.** Client-side `kubectl apply` stores the entire manifest in the `last-applied-configuration` annotation, and annotations cap at 256 KB. Server-side apply tracks ownership in `managedFields` instead — no annotation to overflow. This bites on nearly every large CRD.
+
+**Pods failed with `CreateContainerConfigError` under `runAsNonRoot`.** The kubelet must *verify* the user isn't root before starting a container, and it can't resolve a named user (`USER app`) without reading the image's `/etc/passwd`. So it fails closed. `runAsNonRoot` is only usable alongside a numeric `runAsUser`.
+
+The second one carries the more useful lesson, and it changed how the base template is written: **a hardened default that CrashLoops on first deploy is worse than no default at all.** A product team that hits it doesn't debug your securityContext — they conclude the platform is broken and copy someone else's working YAML. That's also why the base ships `emptyDir` mounts at `/data` and `/tmp`, since `readOnlyRootFilesystem: true` without writable paths is the same failure wearing a different hat.
+
+Full write-ups with symptoms and root causes: **[docs/troubleshooting.md](docs/troubleshooting.md)**.
+
 ---
 
 ## Prerequisites
@@ -177,7 +205,12 @@ apps/podinfo/
   base/                           the golden path defaults
   overlays/local/                 only what differs for this environment
 scripts/                          bootstrap, teardown, drift demo, validation
-docs/                             lab walkthrough, AWS setup, ADRs
+docs/
+  concepts.md                     how it works and why — start here
+  lab-01-gitops.md                step-by-step walkthrough
+  troubleshooting.md              real failures, root causes
+  aws-setup.md                    prep for lab 2
+  adr/                            decisions worth defending later
 .github/workflows/validate.yaml   render + schema-validate every PR
 ```
 

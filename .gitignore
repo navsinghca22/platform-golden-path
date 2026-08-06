@@ -7,3 +7,6 @@ kubeconfig
 *.tfstate.backup
 .terraform/
 tmp/
+
+# personal notes, not part of the project
+docs/interview-notes.md
