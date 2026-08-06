@@ -8,6 +8,7 @@
 # the repo unusable by anyone else; templating it at bootstrap time and leaving
 # Git dirty is worse. An explicit, committed init step is the honest option.
 
+# shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 REPO_URL="${REPO_URL:-}"

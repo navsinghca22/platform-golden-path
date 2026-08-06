@@ -15,15 +15,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install kustomize
+      # ubuntu-latest already ships kustomize, and upstream's install script
+      # aborts rather than overwrite an existing binary ("exists. Remove it
+      # first."). Use what's there; only install if it's genuinely missing.
+      - name: Ensure kustomize
         run: |
-          curl -sSfL https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh \
-            | bash -s -- 5.7.1 /usr/local/bin
+          set -euo pipefail
+          if command -v kustomize >/dev/null 2>&1; then
+            echo "using preinstalled kustomize: $(kustomize version)"
+          else
+            echo "installing kustomize ${KUSTOMIZE_VERSION}"
+            curl -sSfL https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh \
+              | bash -s -- "${KUSTOMIZE_VERSION}" "${HOME}/.local/bin"
+            echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
+          fi
+        env:
+          KUSTOMIZE_VERSION: "5.7.1"
 
-      - name: Install kubeconform
+      - name: Ensure kubeconform
         run: |
-          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz \
-            | tar -xz -C /usr/local/bin kubeconform
+          set -euo pipefail
+          if command -v kubeconform >/dev/null 2>&1; then
+            echo "using preinstalled kubeconform: $(kubeconform -v)"
+          else
+            mkdir -p "${HOME}/.local/bin"
+            curl -sSfL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+              | tar -xz -C "${HOME}/.local/bin" kubeconform
+            echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
+          fi
+        env:
+          KUBECONFORM_VERSION: "v0.7.0"
+
+      - name: Show tool versions
+        run: |
+          kustomize version
+          kubeconform -v
 
       - name: Validate
         run: ./scripts/validate.sh
@@ -33,5 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure shellcheck
+        run: command -v shellcheck >/dev/null 2>&1 || sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Run shellcheck
-        run: shellcheck scripts/*.sh
+        run: shellcheck -x scripts/*.sh

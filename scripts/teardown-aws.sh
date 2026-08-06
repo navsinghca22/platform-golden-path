@@ -10,6 +10,7 @@
 # deleted past its finalizer. Trusting your own automation without checking it
 # once is a bad habit to build in a lab and an expensive one in production.
 
+# shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require kubectl aws

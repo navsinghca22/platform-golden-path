@@ -353,3 +353,82 @@ kubectl get buckets.s3.aws.m.upbound.io -A \
 More generally: when a system insists every component is healthy but the
 outcome is wrong, stop debugging components and check whether you are looking
 at the thing you think you are looking at.
+
+---
+
+## 11. Every CI run red from commit #1 (two bugs, both avoidable)
+
+**Symptom**
+
+Six pushes, six red crosses, each failing in 8–19 seconds. The repo advertised
+a validation pipeline that had never once passed.
+
+**Bug one — the runner already had the tool**
+
+```
+/usr/local/bin/kustomize exists. Remove it first.
+Error: Process completed with exit code 1.
+```
+
+`ubuntu-latest` ships kustomize preinstalled. Upstream's `install_kustomize.sh`
+deliberately refuses to overwrite an existing binary. The job died on its first
+step, every time.
+
+The fix isn't to force the install — it's to stop assuming the environment is
+empty:
+
+```yaml
+if command -v kustomize >/dev/null 2>&1; then
+  echo "using preinstalled kustomize: $(kustomize version)"
+else
+  curl -sSfL .../install_kustomize.sh | bash -s -- "$KUSTOMIZE_VERSION" "$HOME/.local/bin"
+  echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+fi
+```
+
+Installing to `$HOME/.local/bin` rather than `/usr/local/bin` also avoids
+fighting the image over a path it owns.
+
+**Bug two — shellcheck exits non-zero on informational findings**
+
+```
+SC1091 (info): Not following: ./lib.sh was not specified as input
+Error: Process completed with exit code 1.
+```
+
+Every script sources `lib.sh` via `$(dirname "${BASH_SOURCE[0]}")/lib.sh`.
+shellcheck can't resolve a dynamic path, so it emits SC1091 — severity *info*,
+but shellcheck still exits 1, which fails the build.
+
+The lazy fix is `--severity=warning` to mute it. The correct fix is to tell
+shellcheck where the file is and let it actually check it:
+
+```bash
+# shellcheck source=scripts/lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+```
+
+then run `shellcheck -x` so it follows the source. Now the linter validates
+more than it did before, instead of less.
+
+A related trap: a `# shellcheck source=...` directive must **immediately
+precede** the sourcing command. This didn't work —
+
+```bash
+# shellcheck source=/dev/null
+set -a; source "${REPO_ROOT}/versions.env"; set +a
+```
+
+— because the first command on the line is `set -a`, not `source`. Splitting it
+across lines fixed it.
+
+**The lesson**
+
+I wrote this pipeline without being able to run it, and shipped it anyway. Both
+bugs were environment assumptions that a single execution would have caught.
+
+**A CI badge that has been red since the first commit is worse than having no
+CI at all.** It advertises a quality bar the project doesn't meet, and any
+reviewer reads it as "wrote a pipeline, never made it pass." If you can't
+execute a pipeline before pushing it, treat the first run as part of writing it
+— not as a formality.

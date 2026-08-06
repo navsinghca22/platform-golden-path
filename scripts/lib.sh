@@ -6,8 +6,10 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export REPO_ROOT
 
+set -a
 # shellcheck source=/dev/null
-set -a; source "${REPO_ROOT}/versions.env"; set +a
+source "${REPO_ROOT}/versions.env"
+set +a
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m warn\033[0m %s\n' "$*" >&2; }

@@ -8,6 +8,7 @@
 # it is a controller continuously asserting that reality matches the declared
 # state, forever, whether or not a pipeline ever runs again.
 
+# shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require kubectl

@@ -8,6 +8,7 @@
 # it writes lives in a mode-600 directory and is removed on exit, including on
 # error -- see the trap below.
 
+# shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require aws kubectl

@@ -4,6 +4,7 @@
 # Kubernetes OpenAPI schema. Runs locally and in CI from the same entrypoint,
 # so "works on my machine" and "passes the PR check" cannot diverge.
 
+# shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require kustomize kubeconform

@@ -6,6 +6,7 @@
 # cluster should converge, not explode. That property is worth more than
 # elegance in a bootstrap script.
 
+# shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require kind kubectl
@@ -31,6 +32,10 @@ log "kube context: ${CTX}"
 # ---------------------------------------------------------------- argo cd ---
 log "installing Argo CD ${ARGOCD_VERSION}"
 kubectl apply -f "${REPO_ROOT}/clusters/local/bootstrap/namespace.yaml"
+# Server-side apply: the applicationsets CRD schema exceeds the 256KB
+# annotation limit that client-side apply needs for
+# kubectl.kubernetes.io/last-applied-configuration. SSA tracks ownership in
+# managedFields instead, so there is no annotation to overflow.
 kubectl apply --server-side --force-conflicts -n argocd \
   -f "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml"
 

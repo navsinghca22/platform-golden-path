@@ -2,6 +2,7 @@
 # Delete the local cluster. Local only -- costs nothing to run, costs nothing
 # to forget. The AWS teardown in Lab 2 is the one that matters financially.
 
+# shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 require kind
