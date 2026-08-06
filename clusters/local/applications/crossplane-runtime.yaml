@@ -15,8 +15,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: __REPO_URL__
-    targetRevision: __REPO_REVISION__
+    repoURL: https://github.com/navsinghca22/platform-golden-path.git
+    targetRevision: main
     path: platform/crossplane
   destination:
     server: https://kubernetes.default.svc
