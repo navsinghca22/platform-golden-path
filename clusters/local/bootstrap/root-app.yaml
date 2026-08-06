@@ -1,0 +1,37 @@
+# The "app of apps" root.
+#
+# This is the ONLY thing bootstrap.sh applies imperatively. Everything else in
+# the cluster is pulled from Git by Argo CD. That boundary matters: it is the
+# difference between "we use GitOps" and "we have one documented escape hatch
+# and everything else is reconciled".
+#
+# It watches clusters/local/applications/ and syncs every Application manifest
+# it finds there. Adding a new workload to the platform is therefore a PR that
+# adds one file to that directory -- no cluster access required.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    # Cascade deletion: removing the root app removes the children it owns.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: __REPO_URL__
+    targetRevision: __REPO_REVISION__
+    path: clusters/local/applications
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      # prune: delete resources removed from Git.
+      prune: true
+      # selfHeal: revert manual changes made against the live cluster.
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

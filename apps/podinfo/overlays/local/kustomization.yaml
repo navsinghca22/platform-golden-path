@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: podinfo
+
+resources:
+  - ../../base
+  - service-nodeport.yaml
+
+# The overlay expresses ONLY what differs from base for this environment.
+# If an overlay starts to look like a fork of base, that is a signal the
+# abstraction is wrong -- not a signal to add more patches.
+replicas:
+  - name: podinfo
+    count: 2
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: local
+    includeSelectors: false

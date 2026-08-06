@@ -1,0 +1,33 @@
+# A child Application, owned by the root app.
+#
+# Note what a product team has to know to get here: nothing about Argo CD
+# internals, nothing about the cluster. They copy this file, change the name
+# and the path. That is the beginning of a golden path.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podinfo
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: __REPO_URL__
+    targetRevision: __REPO_REVISION__
+    path: apps/podinfo/overlays/local
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: podinfo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

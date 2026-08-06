@@ -1,0 +1,20 @@
+# Local-only. kind maps host port 8080 to this NodePort (see clusters/local/kind.yaml),
+# which is why `make open` works without a port-forward.
+# Deliberately NOT in base: nothing about NodePort should follow a service to
+# an environment that has a real ingress controller.
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo-nodeport
+  labels:
+    app.kubernetes.io/name: podinfo
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: podinfo
+  ports:
+    - name: http
+      port: 9898
+      targetPort: 9898
+      nodePort: 30080
+      protocol: TCP
