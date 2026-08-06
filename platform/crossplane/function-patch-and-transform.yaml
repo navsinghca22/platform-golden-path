@@ -1,0 +1,13 @@
+# Composition functions are how Crossplane turns one custom resource into many
+# real ones. patch-and-transform is the plain-YAML option: no loops, no
+# conditionals, easy to read in review.
+#
+# Crossplane also supports Go templates, CEL, Python and KCL. Reach for those
+# when a composition genuinely needs logic -- not before. A composition you
+# can't read in a PR is a composition nobody will trust.
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: crossplane-contrib-function-patch-and-transform
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/function-patch-and-transform:v0.8.2

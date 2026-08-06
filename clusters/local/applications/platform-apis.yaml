@@ -1,0 +1,36 @@
+# Wave 3 -- the platform's own APIs.
+#
+# This is the interesting one. Everything before it was installing other
+# people's software; this is where the platform team's actual product lives:
+# the XRD that defines what a developer can ask for, and the Composition that
+# decides what they get.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-apis
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: __REPO_URL__
+    targetRevision: __REPO_REVISION__
+    path: apis/storage
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crossplane-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

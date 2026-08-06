@@ -1,0 +1,36 @@
+# Wave 2 -- provider configuration.
+#
+# Depends on the provider package being installed AND healthy, because
+# ClusterProviderConfig is a CRD the provider brings with it. This is the
+# application most likely to retry a few times on a cold cluster; that's
+# expected, and the backoff below is why it recovers on its own.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crossplane-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: __REPO_URL__
+    targetRevision: __REPO_REVISION__
+    path: platform/crossplane-config
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crossplane-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

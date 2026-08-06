@@ -1,0 +1,24 @@
+# Tells the AWS provider where to find credentials.
+#
+# The Secret it points at is NOT in this repo and never will be. It's created
+# locally by scripts/aws-credentials.sh from your ~/.aws profile. This manifest
+# is a reference to a secret, which is safe to commit; the secret itself is not.
+#
+# ClusterProviderConfig applies across all namespaces. A namespaced
+# ProviderConfig would let different teams use different AWS accounts -- the
+# obvious next step for a real multi-tenant platform, and a good thing to be
+# able to describe.
+#
+# See docs/adr/0002-static-credentials-vs-irsa.md for why this uses static keys
+# and what production would do instead.
+apiVersion: aws.m.upbound.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-secret
+      key: creds

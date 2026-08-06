@@ -2,12 +2,8 @@
 
 An internal developer platform, built one layer at a time. Kubernetes control plane, GitOps delivery, and self-service infrastructure — running locally, provisioning real cloud resources.
 
-![Argo CD showing the root and podinfo applications, both Synced and Healthy](docs/images/argocd-applications.png)
-
-*Two applications, both reconciling from GitHub. `root` was applied by hand; it found `podinfo` in a directory and created it.*
-
-> **Status:** Lab 1 of 3 complete — GitOps delivery with Argo CD.
-> Lab 2 adds Crossplane and real AWS resources. Lab 3 adds the scaffolder and observability defaults.
+> **Status:** Labs 1–2 complete — GitOps delivery, and self-service cloud infrastructure.
+> Lab 3 adds the scaffolder and observability defaults.
 
 ### Where to start
 
@@ -15,9 +11,9 @@ An internal developer platform, built one layer at a time. Kubernetes control pl
 |---|---|
 | Run it | [Quick start](#quick-start) below — about 5 minutes |
 | Understand *why* it's built this way | **[docs/concepts.md](docs/concepts.md)** — reconciliation, pull vs push, app-of-apps, cognitive load |
-| Follow the lab step by step | [docs/lab-01-gitops.md](docs/lab-01-gitops.md) |
+| Follow the labs step by step | [Lab 1 — GitOps](docs/lab-01-gitops.md) · [Lab 2 — Crossplane](docs/lab-02-crossplane.md) |
 | See what broke and why | [docs/troubleshooting.md](docs/troubleshooting.md) — real failures, root causes |
-| Understand the cost decision | [docs/adr/0001](docs/adr/0001-local-control-plane.md) |
+| Understand the decisions | [ADR-0001 — local control plane](docs/adr/0001-local-control-plane.md) · [ADR-0002 — credentials](docs/adr/0002-static-credentials-vs-irsa.md) |
 
 `concepts.md` is the one to read if you only read one. It explains the ideas rather than the commands, and it's written to be re-read.
 
@@ -51,7 +47,7 @@ A golden path: one well-lit way to get a service running, with the right default
                        ┌──────────────────────────────────────────┐
                        │  Argo CD          root "app of apps"     │
                        │    └── podinfo                           │
-                       │    └── (lab 2) crossplane                │
+                       │    └── crossplane + platform APIs        │
                        │    └── (lab 3) observability             │
                        └───────────────────┬──────────────────────┘
                                            │ reconcile
@@ -59,7 +55,7 @@ A golden path: one well-lit way to get a service running, with the right default
                        ┌──────────────────────────────────────────┐
                        │  kind cluster (local, free, disposable)  │
                        └───────────────────┬──────────────────────┘
-                                           │ (lab 2) Crossplane claims
+                                           │ Crossplane (namespaced XRs)
                                            ▼
                        ┌──────────────────────────────────────────┐
                        │  AWS — real S3, real IAM, real API       │
@@ -234,8 +230,8 @@ Manifests that don't render are caught in review, not at 2am.
 ## Roadmap
 
 - [x] **Lab 1 — GitOps.** kind + Argo CD + app-of-apps + drift reconciliation.
-- [ ] **Lab 2 — Self-service infrastructure.** Crossplane in-cluster, provisioning a real S3 bucket in AWS from a Kubernetes claim. Prep: [docs/aws-setup.md](docs/aws-setup.md).
-- [ ] **Lab 3 — The portal.** A scaffolder that generates a new service repo (app skeleton + CI + manifests + Crossplane claim + catalog registration) from a form, with observability wired in by default.
+- [x] **Lab 2 — Self-service infrastructure.** Crossplane v2 provisioning real AWS S3 from a namespaced composite resource, behind a two-field developer API. [Walkthrough](docs/lab-02-crossplane.md).
+- [ ] **Lab 3 — The portal.** A scaffolder that generates a new service repo (app skeleton + CI + manifests + an ObjectStorage request + catalog registration) from a form, with observability wired in by default.
 
 ## What I'd do next with more time
 

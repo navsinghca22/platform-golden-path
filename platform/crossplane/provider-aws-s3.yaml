@@ -1,0 +1,11 @@
+# The AWS S3 provider teaches Crossplane how to talk to the S3 API.
+#
+# Installing this one package also pulls in provider-family-aws, which owns
+# authentication shared across every AWS provider. That split is deliberate:
+# credentials are configured once, not once per service.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: crossplane-contrib-provider-aws-s3
+spec:
+  package: xpkg.crossplane.io/crossplane-contrib/provider-aws-s3:v2.0.0

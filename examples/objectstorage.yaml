@@ -1,0 +1,14 @@
+# What a product team writes. This is the entire developer-facing surface.
+#
+# No account IDs, no ARNs, no bucket naming scheme, no tagging policy to look
+# up. generateName is used because S3 bucket names are globally unique across
+# every AWS customer on earth -- a detail the platform absorbs so the developer
+# never hits a confusing "BucketAlreadyExists" error.
+apiVersion: platform.golden-path.io/v1alpha1
+kind: ObjectStorage
+metadata:
+  namespace: default
+  generateName: team-checkout-
+spec:
+  region: us-east-1
+  owner: team-checkout

@@ -10,3 +10,6 @@ tmp/
 
 # personal notes, not part of the project
 docs/interview-notes.md
+aws-credentials.ini
+*credentials*.ini
+*accessKeys*.csv

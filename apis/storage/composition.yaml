@@ -1,0 +1,64 @@
+# What the platform actually does when someone asks for storage.
+#
+# The developer supplies at most two fields. Everything below -- naming, tags,
+# lifecycle behaviour -- is the platform's opinion, applied consistently to
+# every bucket in the fleet without anyone having to remember it.
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: objectstorage-aws-s3
+  labels:
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: platform.golden-path.io/v1alpha1
+    kind: ObjectStorage
+  mode: Pipeline
+  pipeline:
+    - step: compose-bucket
+      functionRef:
+        name: crossplane-contrib-function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: bucket
+            base:
+              apiVersion: s3.aws.m.upbound.io/v1beta1
+              kind: Bucket
+              spec:
+                forProvider:
+                  region: us-east-1
+                  # Lab-only. forceDestroy lets Crossplane delete a bucket that
+                  # still has objects in it. In production this is false, and a
+                  # non-empty bucket failing to delete is a feature, not a bug.
+                  # It is set here because "I forgot to empty the bucket" should
+                  # not turn into a recurring AWS charge.
+                  forceDestroy: true
+                  tags:
+                    ManagedBy: crossplane
+                    Project: platform-golden-path
+            patches:
+              # Developer-supplied values.
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.region
+                toFieldPath: spec.forProvider.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.owner
+                toFieldPath: spec.forProvider.tags.Owner
+              # Traceability: which XR, in which namespace, produced this bucket.
+              # Without these, an orphaned bucket in the console is a mystery.
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.forProvider.tags.ObjectStorage
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.namespace
+                toFieldPath: spec.forProvider.tags.Namespace
+              # Report real-world facts back to the developer, so they never
+              # need to open the AWS console to find their bucket name.
+              - type: ToCompositeFieldPath
+                fromFieldPath: metadata.annotations[crossplane.io/external-name]
+                toFieldPath: status.bucketName
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.atProvider.arn
+                toFieldPath: status.arn

@@ -1,0 +1,59 @@
+# The golden path, expressed as an API.
+#
+# A developer who needs object storage should not have to know that AWS calls
+# it S3, that bucket names are globally unique, what a public access block is,
+# or which tags the finance team needs for cost allocation. They should ask for
+# storage and get storage.
+#
+# This XRD is that ask. Two optional fields, sane defaults, and the platform
+# supplies everything else. Compare the surface area here to the raw
+# s3.aws.m.upbound.io Bucket API and the difference IS the platform's value.
+#
+# Crossplane v2 note: `scope: Namespaced` is the modern model. In v1 you would
+# have needed a cluster-scoped XR plus a namespaced "claim" to hand to a team.
+# v2 removed claims entirely -- the XR itself is namespaced now, which means
+# ordinary Kubernetes RBAC governs who can ask for what.
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: objectstorages.platform.golden-path.io
+spec:
+  scope: Namespaced
+  group: platform.golden-path.io
+  names:
+    kind: ObjectStorage
+    plural: objectstorages
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                region:
+                  description: AWS region to create the bucket in.
+                  type: string
+                  default: us-east-1
+                  enum:
+                    - us-east-1
+                    - us-west-2
+                    - eu-west-1
+                owner:
+                  description: >-
+                    Team that owns this storage. Becomes the Owner tag, which is
+                    how cost allocation and orphan cleanup find it later.
+                  type: string
+                  default: unassigned
+            status:
+              type: object
+              properties:
+                bucketName:
+                  description: The generated, globally-unique S3 bucket name.
+                  type: string
+                arn:
+                  description: ARN of the bucket, for IAM policies.
+                  type: string

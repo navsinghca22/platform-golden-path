@@ -3,7 +3,7 @@ SHELL := /usr/bin/env bash
 include versions.env
 export
 
-.PHONY: help init up down bootstrap argocd-ui argocd-password open drift-demo validate lint status
+.PHONY: help init up down bootstrap argocd-ui argocd-password open drift-demo validate lint status aws-creds bucket storage xp-status teardown-aws
 
 help: ## Show this help
 	@grep -hE "^[a-zA-Z_-]+:.*?## " $(MAKEFILE_LIST) \
@@ -36,6 +36,25 @@ drift-demo: ## Break the cluster by hand and watch Argo CD heal it
 
 status: ## Show Argo CD application state
 	@kubectl -n argocd get applications -o wide
+
+aws-creds: ## Create the AWS credentials Secret in-cluster from your local profile
+	@./scripts/aws-credentials.sh
+
+bucket: ## Ask the platform for a bucket (creates an ObjectStorage XR)
+	@kubectl create -f examples/objectstorage.yaml
+
+storage: ## Show ObjectStorage requests and the AWS buckets behind them
+	@echo "--- ObjectStorage (what developers asked for) ---"
+	@kubectl get objectstorages.platform.golden-path.io -A 2>/dev/null || echo "  none"
+	@echo
+	@echo "--- Bucket (what Crossplane created in AWS) ---"
+	@kubectl get buckets.s3.aws.m.upbound.io -A 2>/dev/null || echo "  none"
+
+xp-status: ## Show Crossplane providers and functions
+	@kubectl get providers,functions 2>/dev/null || echo "crossplane not installed yet"
+
+teardown-aws: ## Delete all cloud resources and VERIFY against the AWS API
+	@./scripts/teardown-aws.sh
 
 validate: ## Render every overlay and validate against the Kubernetes schema
 	@./scripts/validate.sh

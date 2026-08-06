@@ -1,0 +1,33 @@
+# Wave 0 -- Crossplane itself, from the upstream Helm chart.
+#
+# Installed through Argo CD rather than `helm install` by hand, because the
+# whole point of Lab 1 was that the cluster's contents are a function of Git.
+# A platform component installed imperatively is a platform component nobody
+# can reproduce.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crossplane
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.crossplane.io/stable
+    chart: crossplane
+    targetRevision: 2.3.1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crossplane-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # Crossplane's CRDs are large; client-side apply would blow the 256KB
+      # annotation limit exactly as the Argo CD install did in Lab 1.
+      - ServerSideApply=true

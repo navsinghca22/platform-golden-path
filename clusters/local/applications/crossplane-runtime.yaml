@@ -1,0 +1,39 @@
+# Wave 1 -- provider and function packages.
+#
+# Must come after Crossplane itself: the Provider and Function kinds don't
+# exist until Crossplane's CRDs are installed. Sync waves are how Argo CD
+# expresses "not until that other thing is done".
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crossplane-runtime
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: __REPO_URL__
+    targetRevision: __REPO_REVISION__
+    path: platform/crossplane
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crossplane-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The Provider/Function CRDs may not exist at the moment Argo first
+      # computes a diff. Without this, the very first sync fails on a
+      # dry-run against a kind the API server has never heard of.
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
